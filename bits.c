@@ -174,7 +174,7 @@ NOTES:
  *   Rating: 2
  */
 int copyLSB(int x) {
-  return 2;
+  return (x << 31) >> 31;
 }
 /* 
  * evenBits - return word with all even-numbered bits set to 1
