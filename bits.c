@@ -217,5 +217,5 @@ unsigned float_abs(unsigned uf) {
  *   Rating: 1
  */
 int isTmin(int x) {
-  return !(x ^ (1 << 31));
+  return !(x ^ (~x + 1)) & !!x;
 }
