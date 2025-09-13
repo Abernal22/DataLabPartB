@@ -174,6 +174,8 @@ NOTES:
  *   Rating: 2
  */
 int copyLSB(int x) {
+  // Shift LSB all the way left into sign position
+  // Right shift replicates that bit across all 32 bits
   return (x << 31) >> 31;
 }
 /* 
@@ -184,7 +186,9 @@ int copyLSB(int x) {
  */
 int evenBits(void) {
   int mask = 0x55;
+  // Replicate pattern across 16 bits
   mask = mask | (mask << 8);
+  // Replicate again across full 32 bits
   mask = mask | (mask << 16);
   return mask; 
 }
@@ -201,12 +205,13 @@ int evenBits(void) {
  */
 unsigned float_abs(unsigned uf) {
   unsigned mask = 0x7FFFFFFF;
-  unsigned absVal = uf & mask;
-  unsigned exp = absVal & 0x7F800000;
-  unsigned frac = absVal & 0x007FFFFF;
+  unsigned absVal = uf & mask; // Remove sign bit
+  unsigned exp = absVal & 0x7F800000; // Extract exponent bits
+  unsigned frac = absVal & 0x007FFFFF; // Extract fraction bits
   if (exp == 0x7F800000 && frac != 0) {
-	 return uf;
+	 return uf; // Return original NaN 
   }
+  // return absolute value
   return absVal; 
 }
 /*
@@ -217,5 +222,6 @@ unsigned float_abs(unsigned uf) {
  *   Rating: 1
  */
 int isTmin(int x) {
+  // (x ^ (~x + 1)) == 0 means x == -x
   return !(x ^ (~x + 1)) & !!x;
 }
