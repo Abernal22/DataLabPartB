@@ -60,28 +60,79 @@ unsigned f2u(float f) {
    - 56 emoji characters
    - 285 hentaigana
    - 3 additional Zanabazar Square characters */
-int test_copyLSB(int x)
+int test_fitsBits(int x, int n)
 {
-  return (x & 0x1) ? -1 : 0;
+  int TMin_n = -(1 << (n-1));
+  int TMax_n = (1 << (n-1)) - 1;
+  return x >= TMin_n && x <= TMax_n;
 }
-int test_evenBits(void) {
+int test_greatestBitPos(int x) {
+    unsigned mask = 1<<31;
+    if (x == 0)
+ return 0;
+    while (!(mask & x)) {
+ mask = mask >> 1;
+    }
+    return mask;
+}
+int test_howManyBits(int x) {
+    unsigned int a, cnt;
+    x = x<0 ? -x-1 : x;
+    a = (unsigned int)x;
+    for (cnt=0; a; a>>=1, cnt++)
+        ;
+    return (int)(cnt + 1);
+}
+int test_leftBitCount(int x) {
   int result = 0;
   int i;
-  for (i = 0; i < 32; i+=2)
-    result |= 1<<i;
+  for (i = 31; i >= 0; i--) {
+      int bit = (x >> i) & 0x1;
+      if (!bit)
+   break;
+      result ++;
+  }
   return result;
 }
-unsigned test_float_abs(unsigned uf) {
+int test_satAdd(int x, int y)
+{
+  if (x > 0 && y > 0 && x+y < 0)
+    return (0x7FFFFFFF);
+  if (x < 0 && y < 0 && x+y >= 0)
+    return (0x80000000);
+  return x + y;
+}
+int test_satMul2(int x)
+{
+  if ((x+x)/2 != x)
+    return x < 0 ? 0x80000000 : 0x7FFFFFFF;
+  else
+    return 2*x;
+}
+int test_satMul3(int x)
+{
+  if ((x+x+x)/3 != x)
+    return x < 0 ? 0x80000000 : 0x7FFFFFFF;
+  else
+    return 3*x;
+}
+unsigned test_float_half(unsigned uf) {
   float f = u2f(uf);
-  unsigned unf = f2u(-f);
+  float hf = 0.5*f;
   if (isnan(f))
     return uf;
-  /* An unfortunate hack to get around a limitation of the BDD Checker */
-  if ((int) uf < 0)
-      return unf;
   else
-      return uf;
+    return f2u(hf);
 }
-int test_isTmin(int x) {
-    return x == 0x80000000;
+unsigned test_float_i2f(int x) {
+  float f = (float) x;
+  return f2u(f);
+}
+int test_trueFiveEighths(int x)
+{
+  return (int) (((long long int) x * 5)/8);
+}
+int test_trueThreeFourths(int x)
+{
+  return (int) (((long long int) x * 3)/4);
 }

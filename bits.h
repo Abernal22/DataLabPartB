@@ -33,11 +33,25 @@
    - 56 emoji characters
    - 285 hentaigana
    - 3 additional Zanabazar Square characters */
-int copyLSB(int);
-int test_copyLSB(int);
-int evenBits();
-int test_evenBits();
-unsigned float_abs(unsigned);
-unsigned test_float_abs(unsigned);
-int isTmin(int);
-int test_isTmin(int);
+int fitsBits(int, int);
+int test_fitsBits(int, int);
+int greatestBitPos(int);
+int test_greatestBitPos(int);
+int howManyBits(int);
+int test_howManyBits(int);
+int leftBitCount(int);
+int test_leftBitCount(int);
+int satAdd(int, int);
+int test_satAdd(int, int);
+int satMul2(int);
+int test_satMul2(int);
+int satMul3(int);
+int test_satMul3(int);
+unsigned float_half(unsigned);
+unsigned test_float_half(unsigned);
+unsigned float_i2f(int);
+unsigned test_float_i2f(int);
+int trueFiveEighths(int);
+int test_trueFiveEighths(int);
+int trueThreeFourths(int);
+int test_trueThreeFourths(int);
