@@ -323,7 +323,7 @@ int satMul3(int x) {
  *   Rating: 4
  */
 unsigned float_half(unsigned uf) {
-    unsigned sign = uf & 0x80000000;
+  unsigned sign = uf & 0x80000000;
   unsigned exp = uf & 0x7F800000;
   unsigned frac = uf & 0x007FFFFF;
 
