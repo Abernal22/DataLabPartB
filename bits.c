@@ -279,9 +279,9 @@ int leftBitCount(int x) {
  *   Rating: 4
  */
 int satAdd(int x, int y) {
-  int sum = x+y;
-  int a = x^y;
-  int b = x^sum;
+  int sum = x+y;     // Compute the normal sum of x and y
+  int a = x^y;       // XOR of x and y: if signs are different, overflow cannot occur
+  int b = x^sum;         // XOR of x and sum: if signs are different, overflow has occurred
   int c = ((~a)&b)>>31;
   return (c|sum)^( c & ( (x>>31)^(1<<31) ) );
 }
