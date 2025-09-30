@@ -213,7 +213,60 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 int leftBitCount(int x) {
-  return 2;
+    int n, tmp, mask, shift;
+
+    n = 0;
+
+    // Check top 16 bits - are they all 1s?
+    mask = ~0 << 16;  // 0xFFFF0000
+    tmp = x & mask;   // isolate top 16 bits
+    tmp = tmp ^ mask; // if all 1s, this should be 0
+    tmp = !tmp;       // 1 if top 16 are all 1s, 0 otherwise
+    shift = tmp << 4; // 16 or 0
+    n = n + shift;
+    x = x << shift;
+
+    // Check top 8 bits
+    mask = ~0 << 24;  // 0xFF000000
+    tmp = x & mask;
+    tmp = tmp ^ mask;
+    tmp = !tmp;
+    shift = tmp << 3; // 8 or 0
+    n = n + shift;
+    x = x << shift;
+
+    // Check top 4 bits
+    mask = ~0 << 28;  // 0xF0000000
+    tmp = x & mask;
+    tmp = tmp ^ mask;
+    tmp = !tmp;
+    shift = tmp << 2; // 4 or 0
+    n = n + shift;
+    x = x << shift;
+
+    // Check top 2 bits
+    mask = ~0 << 30;  // 0xC0000000
+    tmp = x & mask;
+    tmp = tmp ^ mask;
+    tmp = !tmp;
+    shift = tmp << 1; // 2 or 0
+    n = n + shift;
+    x = x << shift;
+
+    // Check top 1 bit
+    mask = 1 << 31;   // 0x80000000
+    tmp = x & mask;
+    tmp = tmp ^ mask;
+    tmp = !tmp;       // 1 if top bit is 1, 0 otherwise
+    n = n + tmp;
+    x = x << tmp;
+
+    // Final bit
+    tmp = x >> 31;    // get sign bit
+    tmp = tmp & 1;    // ensure it's 0 or 1
+    n = n + tmp;
+
+    return n;
 }
 /*
  * satAdd - adds two numbers but when positive overflow occurs, returns
@@ -226,7 +279,11 @@ int leftBitCount(int x) {
  *   Rating: 4
  */
 int satAdd(int x, int y) {
-  return 2;
+  int sum = x+y;
+  int a = x^y;
+  int b = x^sum;
+  int c = ((~a)&b)>>31;
+  return (c|sum)^( c & ( (x>>31)^(1<<31) ) );
 }
 /*
  * satMul2 - multiplies by 2, saturating to Tmin or Tmax if overflow
@@ -238,7 +295,7 @@ int satAdd(int x, int y) {
  *   Rating: 3
  */
 int satMul2(int x) {
-  return 2;
+  return x << 1;
 }
 /*
  * satMul3 - multiplies by 3, saturating to Tmin or Tmax if overflow
@@ -252,7 +309,7 @@ int satMul2(int x) {
  *  Rating: 3
  */
 int satMul3(int x) {
-    return 2;
+    return (x << 1) + x;
 }
 /* 
  * float_half - Return bit-level equivalent of expression 0.5*f for
@@ -266,7 +323,40 @@ int satMul3(int x) {
  *   Rating: 4
  */
 unsigned float_half(unsigned uf) {
-  return 2;
+    unsigned sign = uf & 0x80000000;
+  unsigned exp = uf & 0x7F800000;
+  unsigned frac = uf & 0x007FFFFF;
+
+  // Check for NaN or Infinity
+  if (exp == 0x7F800000) {
+    return uf;  // Return NaN or Infinity unchanged
+  }
+
+  // Denormalized number or will become denormalized
+  if (exp == 0) {
+    // Handle rounding: round to even
+    // Round up only if: bit 0 is 1 AND (bit 1 is 1 OR there are more bits set)
+    // This implements "round to nearest, ties to even"
+    unsigned round = (frac & 3) == 3;
+    frac = frac >> 1;
+    frac = frac + round;
+    return sign | frac;
+  }
+
+  // Check if decrementing exponent would make it denormalized
+  if (exp == 0x00800000) {
+    // Exponent becomes 0, need to convert to denormalized
+    // Add implicit 1 to mantissa and shift
+    frac = frac | 0x00800000;  // Add implicit leading 1
+    // Handle rounding: round to even
+    unsigned round = (frac & 3) == 3;
+    frac = frac >> 1;
+    frac = frac + round;
+    return sign | frac;
+  }
+
+  // Normal case: just decrement exponent
+  return uf - 0x00800000;
 }
 /* 
  * float_i2f - Return bit-level equivalent of expression (float) x
@@ -278,7 +368,43 @@ unsigned float_half(unsigned uf) {
  *   Rating: 4
  */
 unsigned float_i2f(int x) {
-  return 2;
+  unsigned sign, exp, frac, abs_x, shift, tmp;
+
+    if (x == 0) return 0;
+
+    sign = x & 0x80000000;
+    abs_x = (sign) ? -x : x;
+    if (sign && !abs_x) abs_x = 0x80000000;  /* INT_MIN */
+
+    /* Find MSB position */
+    shift = 0;
+    tmp = abs_x;
+    if (tmp >> 16) { shift = 16; tmp >>= 16; }
+    if (tmp >> 8) { shift += 8; tmp >>= 8; }
+    if (tmp >> 4) { shift += 4; tmp >>= 4; }
+    if (tmp >> 2) { shift += 2; tmp >>= 2; }
+    if (tmp >> 1) { shift += 1; }
+
+    exp = shift + 127;
+
+    /* Extract mantissa with rounding */
+    if (shift < 23) {
+        frac = (abs_x << (23 - shift)) & 0x7FFFFF;
+    } else {
+        unsigned drop = shift - 23;
+        unsigned round_bits = abs_x & ((1 << drop) - 1);
+        unsigned half = 1 << (drop - 1);
+
+        frac = (abs_x >> drop) & 0x7FFFFF;
+
+        /* Round to even */
+        if (round_bits > half || (round_bits == half && (frac & 1))) {
+            frac++;
+            if (!(frac & 0x7FFFFF)) exp++;  /* Overflow into exponent */
+        }
+    }
+
+    return sign | (exp << 23) | (frac & 0x7FFFFF);
 }
 /*
  * trueFiveEighths - multiplies by 5/8 rounding toward 0,
