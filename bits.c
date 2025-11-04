@@ -176,7 +176,16 @@ NOTES:
  *   Rating: 2
  */
 int fitsBits(int x, int n) {
-  return 2;
+  int shift = 33 + ~n;                 /* 32 - n */
+  int shr = (x << shift) >> shift;     /* sign-extend back */
+  int base = !(x ^ shr);               /* 1 iff equal (fits by the usual rule) */
+
+  /* Detect n==32 and x==INT_MIN to zero out that single case */
+  int isN32 = !(n + ~32 + 1);          /* 1 if n == 32 */
+  int isMin = !(x ^ (1 << 31));        /* 1 if x == INT_MIN */
+  int special = isN32 & isMin;         /* 1 only for (n==32 && x==INT_MIN) */
+
+  return base & !special;
 }
 /* 
  * greatestBitPos - return a mask that marks the position of the
@@ -187,7 +196,22 @@ int fitsBits(int x, int n) {
  *   Rating: 4 
  */
 int greatestBitPos(int x) {
-  return 2;
+  int sign = x >> 31;                 /* -1 if x<0 else 0 */
+  int signBit = x & (1 << 31);        /* 0x80000000 if x<0 and x!=0, else 0 */
+  int posx = x & ~sign;               /* zero out if negative, keep x if >=0 */
+
+  /* propagate highest 1 downwards (safe for non-negative posx) */
+  posx |= posx >> 1;
+  posx |= posx >> 2;
+  posx |= posx >> 4;
+  posx |= posx >> 8;
+  posx |= posx >> 16;
+
+  /* isolate MSB among those ones */
+  posx = posx & ~(posx >> 1);
+
+  /* negatives return signBit; non-negatives return posx; x==0 returns 0 */
+  return signBit | posx;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -202,7 +226,26 @@ int greatestBitPos(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  int sign = x >> 31;
+  int y = x ^ sign;                  /* if negative: ~x; else: x */
+
+  int b16 = (!!(y >> 16)) << 4;     /* 16 if top half nonzero */
+  y >>= b16;
+
+  int b8  = (!!(y >> 8)) << 3;      /* +8 if next chunk nonzero */
+  y >>= b8;
+
+  int b4  = (!!(y >> 4)) << 2;      /* +4 */
+  y >>= b4;
+
+  int b2  = (!!(y >> 2)) << 1;      /* +2 */
+  y >>= b2;
+
+  int b1  = (!!(y >> 1));           /* +1 if bit1 set */
+  y >>= b1;
+
+  /* y is now 0 or 1 (the least significant bit) */
+  return b16 + b8 + b4 + b2 + b1 + y + 1;
 }
 /*
  * leftBitCount - returns count of number of consective 1's in
@@ -416,9 +459,17 @@ unsigned float_i2f(int x) {
  *  Max ops: 25
  *  Rating: 4
  */
-int trueFiveEighths(int x)
-{
-    return 2;
+int trueFiveEighths(int x){
+  int q = x >> 3;              /* x / 8 (arithmetic) */
+  int r = x & 7;               /* x % 8 in low bits (0..7) */
+
+  int q5 = (q << 2) + q;       /* q * 5 */
+  int r5 = (r << 2) + r;       /* r * 5 (0..35) */
+
+  /* Bias to make right-shift of negative totals truncate toward 0 */
+  int bias = (x >> 31) & 7;    /* 7 if x<0, else 0 */
+
+  return q5 + ((r5 + bias) >> 3);
 }
 /*
  * trueThreeFourths - multiplies by 3/4 rounding toward 0,
@@ -430,7 +481,15 @@ int trueFiveEighths(int x)
  *   Max ops: 20
  *   Rating: 4
  */
-int trueThreeFourths(int x)
-{
-  return 2;
+int trueThreeFourths(int x){
+  int q = x >> 2;          /* x / 4 (arithmetic) */
+  int r = x & 3;           /* x % 4 in two's complement low bits */
+
+  int q3 = (q << 1) + q;   /* q * 3 */
+  int r3 = (r << 1) + r;   /* r * 3 */
+
+  /* For negative numbers, add bias before >>2 to round toward 0 */
+  int bias = (x >> 31) & 3;
+
+  return q3 + ((r3 + bias) >> 2);
 }
