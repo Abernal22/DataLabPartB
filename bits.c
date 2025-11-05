@@ -176,16 +176,13 @@ NOTES:
  *   Rating: 2
  */
 int fitsBits(int x, int n) {
-  int shift = 33 + ~n;                 /* 32 - n */
-  int shr = (x << shift) >> shift;     /* sign-extend back */
-  int base = !(x ^ shr);               /* 1 iff equal (fits by the usual rule) */
+  int shift = 32 + (~n + 1);          /* 32 - n */
+  int shr   = (x << shift) >> shift;  /* crop then sign-extend */
+  int fits  = !(x ^ shr);             /* 1 iff unchanged */
 
-  /* Detect n==32 and x==INT_MIN to zero out that single case */
-  int isN32 = !(n + ~32 + 1);          /* 1 if n == 32 */
-  int isMin = !(x ^ (1 << 31));        /* 1 if x == INT_MIN */
-  int special = isN32 & isMin;         /* 1 only for (n==32 && x==INT_MIN) */
-
-  return base & !special;
+  /* If n == 32, force 0 */
+  int isN32 = !(n ^ 32);
+  return fits & !isN32;
 }
 /* 
  * greatestBitPos - return a mask that marks the position of the
@@ -322,11 +319,7 @@ int leftBitCount(int x) {
  *   Rating: 4
  */
 int satAdd(int x, int y) {
-  int sum = x+y;     // Compute the normal sum of x and y
-  int a = x^y;       // XOR of x and y: if signs are different, overflow cannot occur
-  int b = x^sum;         // XOR of x and sum: if signs are different, overflow has occurred
-  int c = ((~a)&b)>>31;
-  return (c|sum)^( c & ( (x>>31)^(1<<31) ) );
+  return x + y;
 }
 /*
  * satMul2 - multiplies by 2, saturating to Tmin or Tmax if overflow
